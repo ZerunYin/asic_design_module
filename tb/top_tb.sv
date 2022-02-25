@@ -4,33 +4,33 @@ bit clk;
 bit rst_n;
 
 initial fork
-    forever #5 clk = ~clk;
+    forever clk = #5 ~clk;
     begin
         @(posedge clk);
-        #1 rst_n = 1'b1;
+        rst_n = #1 1'b1;
     end
 join
 
 typedef logic[7:0] T;
 
 // fifo output
-T data_out;
+T     data_out;
 logic full;
 logic empty;
 
-
-logic wen;
-T data_in;
+// fifo input
 logic ren;
+logic wen;
+T     data_in;
 
 initial begin
     wait(rst_n);
     while (1) begin
-        @(posedge clk);
-        #1;
         wen = (!full | full & ren) & $urandom_range(1, 0);
         ren = !empty & $urandom_range(1, 0);
         data_in = $random;
+        @(posedge clk);
+        #1;
     end
 end
 
@@ -45,5 +45,21 @@ sync_fifo_v1 #(
 ) i_sync_fifo_v1 (
     .*
 );
+
+// model
+T mem[$];
+initial begin
+    wait(rst_n);
+    while (1) begin
+        @(posedge clk) begin
+            if (wen)
+                mem.push_back(data_in);
+            
+            if (ren)
+                assert (data_out == mem.pop_front);
+        end
+
+    end
+end
 
 endmodule
