@@ -18,13 +18,25 @@ module sync_fifo_v3 #(
 localparam ADDR_SIZE = $clog2(DEPTH);
 
 logic [ADDR_SIZE-1:0] waddr;
-wire  [ADDR_SIZE  :0] waddr_incr = waddr + 1'b1;
-wire  [ADDR_SIZE-1:0] waddr_nxt  = waddr_incr == DEPTH ? '0 : waddr_incr;
-
 logic [ADDR_SIZE-1:0] raddr;
-wire  [ADDR_SIZE  :0] raddr_incr = raddr + 1'b1;
-wire  [ADDR_SIZE-1:0] raddr_nxt  = raddr_incr == DEPTH ? '0 : raddr_incr;
 
+generate
+    wire [ADDR_SIZE-1:0] waddr_nxt;
+    wire [ADDR_SIZE-1:0] raddr_nxt;
+    if (DEPTH%2 == 0) begin
+        assign waddr_nxt = waddr + 1'b1;
+        assign raddr_nxt = raddr + 1'b1;
+    end else begin
+        wire [ADDR_SIZE:0] waddr_incr;
+        wire [ADDR_SIZE:0] raddr_incr;
+
+        assign waddr_incr = waddr + 1'b1;
+        assign raddr_incr = raddr + 1'b1;
+
+        assign waddr_nxt  = waddr_incr == DEPTH ? '0 : waddr_incr;
+        assign raddr_nxt  = raddr_incr == DEPTH ? '0 : raddr_incr;
+    end
+endgenerate
 
 // input and output data of FIFO
 T mem [DEPTH-1:0];
