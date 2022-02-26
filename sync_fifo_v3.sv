@@ -1,6 +1,9 @@
 module sync_fifo_v3 #(
-    parameter int  DEPTH = 2,
-    parameter type T     = logic
+    parameter  int  DEPTH         = 2,
+    parameter  type T             = logic,
+    localparam int  ADDR_SIZE     = $clog2(DEPTH),
+    localparam int  DEPTH_IS_POW2 = !(DEPTH&(DEPTH-1)),
+    localparam int  CNT_SIZE      = DEPTH_IS_POW2 ? ADDR_SIZE+1 : ADDR_SIZE;
 )(
     input        clk,
     input        rst_n,
@@ -15,28 +18,21 @@ module sync_fifo_v3 #(
     output logic empty
 );
 
-localparam ADDR_SIZE = $clog2(DEPTH);
-
 logic [ADDR_SIZE-1:0] waddr;
 logic [ADDR_SIZE-1:0] raddr;
+logic [ADDR_SIZE-1:0] waddr_nxt;
+logic [ADDR_SIZE-1:0] raddr_nxt;
 
-generate
-    wire [ADDR_SIZE-1:0] waddr_nxt;
-    wire [ADDR_SIZE-1:0] raddr_nxt;
-    if (DEPTH%2 == 0) begin
-        assign waddr_nxt = waddr + 1'b1;
-        assign raddr_nxt = raddr + 1'b1;
-    end else begin
-        wire [ADDR_SIZE:0] waddr_incr;
-        wire [ADDR_SIZE:0] raddr_incr;
+wire  [ADDR_SIZE-1:0] waddr_incr = waddr + 1'b1;
+wire  [ADDR_SIZE-1:0] raddr_incr = raddr + 1'b1;
 
-        assign waddr_incr = waddr + 1'b1;
-        assign raddr_incr = raddr + 1'b1;
-
-        assign waddr_nxt  = waddr_incr == DEPTH ? '0 : waddr_incr;
-        assign raddr_nxt  = raddr_incr == DEPTH ? '0 : raddr_incr;
-    end
-endgenerate
+if (DEPTH_IS_POW2) begin : rw_addr_nxt
+    assign waddr_nxt = waddr_incr;
+    assign raddr_nxt = raddr_incr;
+end else begin
+    assign waddr_nxt  = waddr_incr == DEPTH ? '0 : waddr_incr;
+    assign raddr_nxt  = raddr_incr == DEPTH ? '0 : raddr_incr;
+end
 
 // input and output data of FIFO
 T mem [DEPTH-1:0];
@@ -66,8 +62,8 @@ always_ff @(posedge clk, negedge rst_n) begin
 end
 
 // empty and full
-logic [ADDR_SIZE:0] cnt;
-logic [ADDR_SIZE:0] cnt_nxt;
+logic [CNT_SIZE-1:0] cnt;
+logic [CNT_SIZE-1:0] cnt_nxt;
 always_comb begin
     unique case ({wen, ren})
         2'b10:   cnt_nxt = cnt + 1'b1;
